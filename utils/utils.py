@@ -1,7 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-
 # def generate_batch(X, Y, batch_size, epochs, shuffle=True):
 #     """Generates a batch iterator for a dataset"""
 #     num_batches_per_epoch = int((len(X) - 1) / batch_size) + 1
@@ -17,7 +16,6 @@ import matplotlib.pyplot as plt
 #             start_index = batch_num * batch_size
 #             end_index = min((batch_num + 1) * batch_size, len(X))
 #             yield shuffled_X[start_index:end_index], shuffled_Y[start_index:end_index]
-
 
 def generate_batch(X, Y, batch_size, shuffle=True):
     """Generates a batch iterator for a dataset"""

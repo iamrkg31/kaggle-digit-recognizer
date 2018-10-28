@@ -1,3 +1,4 @@
+import os
 import numpy as np
 import tensorflow as tf
 from architectures.cnn import CNN
@@ -19,6 +20,7 @@ batch_size = conf.get_config("PARAMS", "batch_size")
 learning_rate = conf.get_config("PARAMS", "learning_rate")
 num_classes = conf.get_config("PARAMS", "num_classes")
 evaluate_every = conf.get_config("PARAMS", "evaluate_every")
+best_validation_acc = 0.0
 
 # Import data
 train_X_ = np.load(conf.get_config("PATHS", "train_X_path"))
@@ -28,6 +30,7 @@ validation_X_ = np.load(conf.get_config("PATHS", "validation_X_path"))
 validation_X = validation_X_.reshape(validation_X_.shape[0], img_height, img_width)
 validation_Y = np.load(conf.get_config("PATHS", "validation_Y_path"))
 
+# Create cnn object
 cnn = CNN(filter_sizes=filter_sizes, num_filters=num_filters, input_X_shape=(img_height, img_width),
           num_classes=num_classes, learning_rate=learning_rate)
 
@@ -35,12 +38,20 @@ cnn = CNN(filter_sizes=filter_sizes, num_filters=num_filters, input_X_shape=(img
 init_op = tf.global_variables_initializer()
 sess.run(init_op)
 
+# Saver
+saver = tf.train.Saver()
+save_dir = 'checkpoints/'
+if not os.path.exists(save_dir):
+    os.makedirs(save_dir)
+save_path = os.path.join(save_dir, 'best_validation')
+
 # Define the variable that stores the result
 train_loss = []
 test_loss = []
 train_accuracy = []
 test_accuracy = []
 
+# Train the model
 for epoch in range(epochs):
     batch_iter = utils.generate_batch(train_X, train_Y, batch_size, shuffle=True)
     for batch_X, batch_Y in batch_iter:
@@ -58,12 +69,16 @@ for epoch in range(epochs):
         temp_test_loss, temp_test_acc = sess.run([cnn.loss, cnn.accuracy], feed_dict=test_dict)
         test_loss.append(temp_test_loss)
         test_accuracy.append(temp_test_acc)
+        if temp_test_acc > best_validation_acc:
+            best_validation_acc = temp_test_acc
+            saver.save(sess=sess, save_path=save_path)
         print('Epoch: {}, Test Loss: {:.2}, Test Acc: {:.2}'.format(epoch + 1, temp_test_loss, temp_test_acc))
         print("*******************************")
 
 # Plot loss over time
 utils.plot_graph(len(train_loss), train_loss, list_label="Train", x_label="Epochs", y_label="Loss", title="Loss")
 utils.plot_graph(len(test_loss), test_loss, list_label="Test", x_label="Epochs", y_label="Loss", title="Loss")
+
 # Plot accuracy over time
 utils.plot_graph(len(train_accuracy), train_accuracy, list_label="Train", x_label="Epochs", y_label="Accuracy", title="Accuracy")
 utils.plot_graph(len(test_accuracy), test_accuracy, list_label="Test", x_label="Epochs", y_label="Accuracy", title="Accuracy")

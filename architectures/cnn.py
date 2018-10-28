@@ -3,10 +3,10 @@ import tensorflow as tf
 class CNN(object):
     def __init__(self, filter_sizes, num_filters, input_X_shape, num_classes=10, learning_rate=0.001):
         # Placeholders
-        self.input_x = tf.placeholder(tf.float32, [None, input_X_shape[0], input_X_shape[1]])
+        self.input_x = tf.placeholder(tf.float32, [None, input_X_shape[0], input_X_shape[1]], name="input_X")
         self.input_x_expanded = tf.expand_dims(self.input_x, -1)
-        self.input_y = tf.placeholder(tf.float32, [None, num_classes])
-        self.dropout_keep_prob = tf.placeholder(tf.float32)
+        self.input_y = tf.placeholder(tf.float32, [None, num_classes], name="input_Y")
+        self.dropout_keep_prob = tf.placeholder(tf.float32, name="dropout_keep_prob")
 
         # Create a convolution + maxpool layer for each filter size
         pooled_outputs = []
@@ -42,7 +42,10 @@ class CNN(object):
         self.bias = tf.Variable(tf.constant(0.1, shape=[num_classes]))
 
         # Create logits
-        self.logits_out = tf.matmul(h_drop, self.weight) + self.bias
+        self.logits_out = tf.nn.xw_plus_b(h_drop, self.weight, self.bias, name="logits_out")
+
+        # prediction
+        self.predictions = tf.argmax(self.logits_out, 1, name="predictions")
 
         # Loss function
         losses = tf.nn.softmax_cross_entropy_with_logits(logits=self.logits_out, labels=self.input_y)
