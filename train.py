@@ -1,9 +1,8 @@
 import numpy as np
-import pandas as pd
 import tensorflow as tf
-import matplotlib.pyplot as plt
-from config.config_parser import Config
 from architectures.cnn import CNN
+from config.config_parser import Config
+from utils import utils
 
 # Start a graph
 sess = tf.Session()
@@ -19,7 +18,7 @@ epochs = conf.get_config("PARAMS", "epochs")
 batch_size = conf.get_config("PARAMS", "batch_size")
 learning_rate = conf.get_config("PARAMS", "learning_rate")
 num_classes = conf.get_config("PARAMS", "num_classes")
-
+evaluate_every = conf.get_config("PARAMS", "evaluate_every")
 
 # Import data
 train_X_ = np.load(conf.get_config("PATHS", "train_X_path"))
@@ -42,52 +41,29 @@ test_loss = []
 train_accuracy = []
 test_accuracy = []
 
-# Start training
 for epoch in range(epochs):
-    # Shuffle training data
-    shuffled_ix = np.random.permutation(np.arange(len(train_X)))
-    train_X = train_X[shuffled_ix]
-    train_Y = train_Y[shuffled_ix]
-    num_batches = int(len(train_X) / batch_size) + 1
-
-    for i in range(num_batches):
-        # Select train data
-        batch_index = np.random.choice(len(train_X), size=batch_size)
-        batch_train_X = train_X[batch_index]
-        batch_train_y = train_Y[batch_index]
-        # Run train step
-        train_dict = {cnn.input_x: batch_train_X, cnn.input_y: batch_train_y, cnn.dropout_keep_prob: 0.5}
+    batch_iter = utils.generate_batch(train_X, train_Y, batch_size, shuffle=True)
+    for batch_X, batch_Y in batch_iter:
+        train_dict = {cnn.input_x: batch_X, cnn.input_y: batch_Y, cnn.dropout_keep_prob: 0.5}
         sess.run(cnn.goal, feed_dict=train_dict)
-
-    # Run loss and accuracy for training
+    # Train loss and accuracy
     temp_train_loss, temp_train_acc = sess.run([cnn.loss, cnn.accuracy], feed_dict=train_dict)
     train_loss.append(temp_train_loss)
     train_accuracy.append(temp_train_acc)
-
-    # Run Eval Step
-    test_dict = {cnn.input_x: validation_X, cnn.input_y: validation_Y, cnn.dropout_keep_prob: 1.0}
-    temp_test_loss, temp_test_acc = sess.run([cnn.loss, cnn.accuracy], feed_dict=test_dict)
-    test_loss.append(temp_test_loss)
-    test_accuracy.append(temp_test_acc)
-    print('Epoch: {}, Test Loss: {:.2}, Test Acc: {:.2}'.format(epoch + 1, temp_test_loss, temp_test_acc))
-
-print('\nOverall accuracy on test set (%): {}'.format(np.mean(temp_test_acc) * 100.0))
+    print('Epoch: {}, Train Loss: {:.2}, Train Acc: {:.2}'.format(epoch + 1, temp_train_loss, temp_train_acc))
+    # Test loss and accuracy
+    if (epoch+1) % evaluate_every == 0:
+        print("Evaluation*********************")
+        test_dict = {cnn.input_x: validation_X, cnn.input_y: validation_Y, cnn.dropout_keep_prob: 1.0}
+        temp_test_loss, temp_test_acc = sess.run([cnn.loss, cnn.accuracy], feed_dict=test_dict)
+        test_loss.append(temp_test_loss)
+        test_accuracy.append(temp_test_acc)
+        print('Epoch: {}, Test Loss: {:.2}, Test Acc: {:.2}'.format(epoch + 1, temp_test_loss, temp_test_acc))
+        print("*******************************")
 
 # Plot loss over time
-epoch_seq = np.arange(1, epochs + 1)
-plt.plot(epoch_seq, train_loss, 'k--', label='Train Set')
-plt.plot(epoch_seq, test_loss, 'r-', label='Test Set')
-plt.title('training/test loss')
-plt.xlabel('Epochs')
-plt.ylabel('Loss')
-plt.legend(loc='upper left')
-plt.show()
-
+utils.plot_graph(len(train_loss), train_loss, list_label="Train", x_label="Epochs", y_label="Loss", title="Loss")
+utils.plot_graph(len(test_loss), test_loss, list_label="Test", x_label="Epochs", y_label="Loss", title="Loss")
 # Plot accuracy over time
-plt.plot(epoch_seq, train_accuracy, 'k--', label='Train Set')
-plt.plot(epoch_seq, test_accuracy, 'r-', label='Test Set')
-plt.title('Test accuracy')
-plt.xlabel('Epochs')
-plt.ylabel('Accuracy')
-plt.legend(loc='upper left')
-plt.show()
+utils.plot_graph(len(train_accuracy), train_accuracy, list_label="Train", x_label="Epochs", y_label="Accuracy", title="Accuracy")
+utils.plot_graph(len(test_accuracy), test_accuracy, list_label="Test", x_label="Epochs", y_label="Accuracy", title="Accuracy")
