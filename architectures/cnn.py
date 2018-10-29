@@ -1,7 +1,8 @@
+import math
 import tensorflow as tf
 
 class CNN(object):
-    def __init__(self, filter_sizes, num_filters, input_X_shape, num_classes=10, learning_rate=0.001, channels=1):
+    def __init__(self, filter_sizes, num_filters, input_X_shape, num_classes=10, learning_rate=0.001, channels=1, stride=2):
         # Placeholders
         self.input_x = tf.placeholder(tf.float32, [None, input_X_shape[0], input_X_shape[1]], name="input_X")
         self.input_x_expanded = tf.expand_dims(self.input_x, -1)
@@ -28,8 +29,8 @@ class CNN(object):
             # Maxpooling over the outputs
             pooled = tf.nn.max_pool(
                 h,
-                ksize=[1, filter_size, filter_size, 1],
-                strides=[1, filter_size, filter_size, 1],
+                ksize=[1, stride, stride, 1],
+                strides=[1, stride, stride, 1],
                 padding='SAME',
                 name="pool")
             pooled_output = pooled
@@ -37,16 +38,24 @@ class CNN(object):
             out_channels = 2 * out_channels
 
         # Flatten the pooled result
-        h_pool_flat = tf.reshape(pooled_output, [-1, int(out_channels/2)])
+        pooled_output_shape = (input_X_shape[0],
+                                math.ceil((input_X_shape[0] / 2 ** len(filter_sizes))),
+                                math.ceil(input_X_shape[0] / 2 ** len(filter_sizes)),
+                                int(out_channels / 2))
+        h_pool_flat = tf.reshape(pooled_output, [-1, pooled_output_shape[1]*pooled_output_shape[2]*pooled_output_shape[3]])
         h_tanh = tf.nn.tanh(h_pool_flat)
-        h_drop = tf.nn.dropout(h_pool_flat, self.dropout_keep_prob)
+        h_drop = tf.nn.dropout(h_tanh, self.dropout_keep_prob)
 
-        # Create weight and bias variable
-        self.weight = tf.Variable(tf.truncated_normal([int(out_channels/2), num_classes], stddev=0.1))
-        self.bias = tf.Variable(tf.constant(0.1, shape=[num_classes]))
+        # Fully connected layer
+        weight = tf.Variable(tf.truncated_normal([pooled_output_shape[1]*pooled_output_shape[2]*pooled_output_shape[3], 784], stddev=0.1),validate_shape=False)
+        bias = tf.Variable(tf.constant(0.1, shape=[784]))
+        fc = tf.nn.xw_plus_b(h_drop, weight, bias)
+        fc = tf.nn.relu(fc)
 
-        # Create logits
-        self.logits_out = tf.nn.xw_plus_b(h_drop, self.weight, self.bias, name="logits_out")
+        # Output
+        weight_out = tf.Variable(tf.truncated_normal([784, num_classes], stddev=0.1), validate_shape=False)
+        bias_out = tf.Variable(tf.constant(0.1, shape=[num_classes]))
+        self.logits_out = tf.nn.xw_plus_b(fc, weight_out, bias_out, name="logits_out")
 
         # prediction
         self.predictions = tf.argmax(self.logits_out, 1, name="predictions")
