@@ -31,4 +31,4 @@ pred = sess.run(prediction, feed_dict=test_dict)
 # Write the predictions to file
 image_ids = np.array([i+1 for i in range(len(X))])
 out = pd.DataFrame({'ImageId':image_ids,'Label':pred})
-out.to_csv("output/digit_recognizer_out2.csv", index=False)
+out.to_csv("output/digit_recognizer_out3.csv", index=False)
